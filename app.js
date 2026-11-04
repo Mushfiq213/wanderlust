@@ -1,4 +1,3 @@
-
 if (process.env.NODE_ENV != "production") {
     require('dotenv').config();
 }
@@ -18,9 +17,7 @@ const LocalStrategy = require("passport-local");
 const userRouter = require("./routes/user.js")
 const listingsRouter = require("./routes/listing");
 const reviewsRouter = require("./routes/review");
-const dbUrl = process.env.ATLAS_DB_URL;
-
-
+const dbUrl = process.env.ATLAS_DB_URL || process.env.ATLASDB_URL;
 
 main()
     .then(() => {
@@ -31,7 +28,9 @@ main()
     });
 
 async function main() {
-    console.log(dbUrl);
+    if (!dbUrl) {
+        throw new Error("MongoDB connection URL (ATLAS_DB_URL or ATLASDB_URL) is not defined in environment variables!");
+    }
     await mongoose.connect(dbUrl);
 }
 
@@ -42,7 +41,6 @@ app.use(methodOverride("_method"));
 app.engine("ejs", ejsMate);
 app.use(express.static(path.join(__dirname, "public")));
 
-
 const store = MongoStore.create({
     mongoUrl: dbUrl,
     crypto: {
@@ -51,13 +49,13 @@ const store = MongoStore.create({
     touchAfter: 24 * 3600,
 });
 
-store.on("error", () => {
-    console.log("ERROR in mongo session store!");
+store.on("error", (err) => {
+    console.log("ERROR in mongo session store!", err);
 });
 
 const sessionOPtions = {
     store,
-    secret: process.env.SECRET,
+    secret: process.env.SECRET || "thisshouldbeabettersecret",
     resave: false,
     saveUninitialized: true,
     cookie: {
@@ -66,7 +64,6 @@ const sessionOPtions = {
         httpOnly: true,
     },
 };
-
 
 app.use(session(sessionOPtions));
 app.use(flash());
@@ -107,6 +104,7 @@ app.use((err, req, res, next) => {
     res.render("error.ejs", { err });
 });
 
-app.listen(process.env.PORT, () => {
-    console.log("Server is running");
+const port = process.env.PORT || 8080;
+app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
 });
